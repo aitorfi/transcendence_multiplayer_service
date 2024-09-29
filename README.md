@@ -32,7 +32,8 @@ He hecho un pequeño html con código JavaScript que se puede usar para testear 
     <h1>WebSocket Pong Game</h1>
 		<input type="text" id="user_id_txt_field">
 		<button id="join_game">Buscar partida</button>
-		<button id="move">Enviar Mensaje</button>
+		<button id="move_up">Moverse arriba</button>
+		<button id="move_down">Moverse abajo</button>
     <script>
         const socket = new WebSocket('ws://localhost:50002/ws/game/');
 
@@ -66,10 +67,20 @@ He hecho un pequeño html con código JavaScript que se puede usar para testear 
             }
         };
 
-        document.getElementById("move").onclick = () => {
+        document.getElementById("move_up").onclick = () => {
             if (socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({
-									type: "move"
+									type: "move",
+									direction: "up"
+								}));
+            }
+        };
+
+		document.getElementById("move_down").onclick = () => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+									type: "move",
+									direction: "down"
 								}));
             }
         };

@@ -32,4 +32,6 @@ media
 migrations
 
 # Backup files # 
-*.bak 
+*.bak
+
+test.html
