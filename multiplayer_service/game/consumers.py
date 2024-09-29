@@ -1,6 +1,6 @@
 import json
+import asyncio
 from channels.generic.websocket import AsyncWebsocketConsumer
-from asyncio import sleep
 
 # Diccionario global para mantener a los jugadores esperando
 waiting_players = []
@@ -70,7 +70,8 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			
 			await self.init_new_game(player1, player2)
 			await self.notify_match_found(player1, player2)
-			await sleep(1)
+			await asyncio.sleep(1)
+			asyncio.create_task(self.update_ball(self.room_id))
 			await self.notify_start_game(player1, player2)
 
 	async def init_new_game(self, player1, player2):
@@ -145,3 +146,25 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			'type': 'game_state_update',
 			'game_state': room['game_state']
 		}))
+
+	async def update_ball(self, room_id):
+		room = active_rooms.get(room_id, [])
+		"""
+		De momento el bucle es infinito pero hay que gestionar
+		que acabe cuando la partida acaba o algún jugador se desconecta
+		"""
+		while True:
+			ball_position = room['game_state']['ball']['position']
+			ball_speed = room['game_state']['ball']['speed']
+
+			ball_position['x'] += ball_speed['x']
+			ball_position['y'] += ball_speed['y']
+
+			if ball_position["y"] >= 100 or ball_position["y"] <= 0:
+				ball_speed["y"] *= -1
+
+			if ball_position["x"] >= 100 or ball_position["x"] <= 0:
+				ball_speed["x"] *= -1
+
+			await self.send_game_state_update(room)
+			await asyncio.sleep(0.05)  # Actualizar la pelota cada 50 ms
