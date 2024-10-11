@@ -110,9 +110,9 @@ LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
 
-USE_I18N = True
+USE_I18N = True # activa internacionalizacion (lo ke coño sea eso)
 
-USE_TZ = True
+USE_TZ = True # habilita el uso de zonas horaias
 
 
 # Static files (CSS, JavaScript, Images)

@@ -14,6 +14,11 @@ Para ejecutar el servidor hay que posicionarse en la carpeta del proyecto de Dja
 
 ```bash
 daphne -p 50002 multiplayer_service.asgi:application
+
+python3 -m daphne -p 50002 multiplayer_service.asgi:application //Este si, el anterior no va
+
+python3 -m daphne -b 0.0.0.0 -p 50002 multiplayer_service.asgi:application // Este
+expone daphne para que se pueda acceder desde otro puesto
 ```
 
 ## Testeo

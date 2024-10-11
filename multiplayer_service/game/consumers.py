@@ -8,9 +8,12 @@ waiting_players = []
 # Diccionario para almacenar las salas activas (por simplicidad, puede ser reemplazado por una base de datos)
 active_rooms = {}
 
+id = 1
+
 class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 	async def connect(self):
 		"""Cuando un cliente se conecta al WebSocket."""
+		print("se ha conectado un cliente")
 		await self.accept()  # Acepta la conexión del WebSocket
 
 	async def disconnect(self, close_code):
@@ -51,7 +54,11 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			}))
 
 	async def handle_action_join_game(self, data):
-		self.user_id = data.get('user_id', 0)
+		#self.user_id = data.get('user_id', 0)
+		global id
+		print (f"id = {id}")
+		self.user_id = id
+		id += 1
 		if self.user_id:
 			waiting_players.append(self)
 			await self.match_players()
@@ -83,11 +90,15 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			'player1': player1,
 			'player2': player2,
 			'game_state': {
-				'player1Y': 25,
-				'player2Y': 25,
+				'player1Y': 150,
+				'player1up': False,
+				'player1down': False,
+				'player2Y': 150,
+				'player2up': False,
+				'player2down': False,
 				'ball': {
-					'position': {'x': 50, 'y': 25},
-					'speed': {'x': 1, 'y': 1}
+					'position': {'x': 300, 'y': 200},
+					'speed': {'x': 1, 'y': 0.1}
 				}
 			}
 		}
@@ -117,25 +128,46 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
 	async def handle_action_player_movement(self, data):
 		room = active_rooms.get(self.room_id, [])
-		movement_direction = data.get('direction', 0)
+		movement_direction = data.get('action', 0)
 		is_player1 = room['player1'].user_id == self.user_id
-		if movement_direction == 'up':
+		#print(f"amos pulsao tecla {movement_direction}")
+		""" if movement_direction == 'upOn':
 			if is_player1:
 				room['game_state']['player1Y'] -= 1
 			else:
 				room['game_state']['player2Y'] -= 1
-		elif movement_direction == 'down':
+		elif movement_direction == 'downOn':
 			if is_player1:
 				room['game_state']['player1Y'] += 1
 			else:
-				room['game_state']['player2Y'] += 1
+				room['game_state']['player2Y'] += 1 """
+		if movement_direction == 'upOn':
+			if is_player1:
+				room['game_state']['player1up'] = True
+			else:
+				room['game_state']['player2up'] = True
+		elif movement_direction == 'downOn':
+			if is_player1:
+				room['game_state']['player1down'] = True
+			else:
+				room['game_state']['player2down'] = True
+		elif movement_direction == 'upOff':
+			if is_player1:
+				room['game_state']['player1up'] = False
+			else:
+				room['game_state']['player2up'] = False
+		elif movement_direction == 'downOff':
+			if is_player1:
+				room['game_state']['player1down'] = False
+			else:
+				room['game_state']['player2down'] = False
 		else:
 			await self.send(text_data=json.dumps({
 				'type': 'error',
 				'message': "Bad request, parameter 'direction' is mandatory."
 			}))
 			return
-		await self.send_game_state_update(room)
+		#await self.send_game_state_update(room)
 
 	async def send_game_state_update(self, room):
 		await room['player1'].send(text_data=json.dumps({
@@ -153,18 +185,65 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 		De momento el bucle es infinito pero hay que gestionar
 		que acabe cuando la partida acaba o algún jugador se desconecta
 		"""
-		while True:
+		speedVariation = 0.3
+		playing =True
+		ball_speed = room['game_state']['ball']['speed']
+
+		while playing:
 			ball_position = room['game_state']['ball']['position']
-			ball_speed = room['game_state']['ball']['speed']
 
 			ball_position['x'] += ball_speed['x']
 			ball_position['y'] += ball_speed['y']
 
-			if ball_position["y"] >= 100 or ball_position["y"] <= 0:
+			if ball_position["y"] >= 390 or ball_position["y"] <= 10:
 				ball_speed["y"] *= -1
 
-			if ball_position["x"] >= 100 or ball_position["x"] <= 0:
+			if ball_position["x"] >= 590:
 				ball_speed["x"] *= -1
 
+			if ball_position["x"] <= 10:
+				if (ball_position["y"] >= room['game_state']['player1Y'] and 
+				ball_position["y"] < room['game_state']['player1Y'] + 33.3):
+					ball_speed["x"] *= -1
+					print(f"arriba   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
+					if ball_speed['y'] <= 0:
+						if abs(ball_speed["x"]) > abs(ball_speed["y"]):
+							ball_speed["x"] -= speedVariation
+							ball_speed['y'] -= speedVariation
+					else:
+						ball_speed["y"] -= speedVariation
+						ball_speed["x"] = 1.1 - abs(ball_speed["y"])
+					print(f"arriba   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
+				elif (ball_position["y"] >= room['game_state']['player1Y'] + 33.3 and 
+				ball_position["y"] < room['game_state']['player1Y'] + 66.6):
+					ball_speed["x"] *= -1
+					print(f"medio   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
+				elif (ball_position["y"] >= room['game_state']['player1Y'] + 66.6 and 
+				ball_position["y"] < room['game_state']['player1Y'] + 100):
+					ball_speed["x"] *= -1
+					print(f"abajo   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
+					if ball_speed['y'] >= 0:
+						if abs(ball_speed["x"]) > abs(ball_speed["y"]):
+							ball_speed["x"] -= speedVariation
+							ball_speed["y"] += speedVariation
+					else:
+						ball_speed["y"] += speedVariation
+						ball_speed["x"] = 1.1 - abs(ball_speed["y"])
+					print(f"abajo   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
+				else:
+					playing = False
+				
+
+			
+			if room['game_state']['player1up'] and room['game_state']['player1Y'] > 0:
+				room['game_state']['player1Y'] -= 1
+			if room['game_state']['player1down'] and room['game_state']['player1Y'] < 300:
+				room['game_state']['player1Y'] += 1
+			if room['game_state']['player2up'] and room['game_state']['player2Y'] > 0:
+				room['game_state']['player2Y'] -= 1
+			if room['game_state']['player2down'] and room['game_state']['player2Y'] < 300:
+				room['game_state']['player2Y'] += 1
+
+
 			await self.send_game_state_update(room)
-			await asyncio.sleep(0.05)  # Actualizar la pelota cada 50 ms
+			await asyncio.sleep(0.002)  # Actualizar la pelota cada x ms
