@@ -1,7 +1,7 @@
 'use strict'
 
 import { getGamePositions, join, button } from "./com.js";
-
+import { game_state,ballx, bally, Player1Y, Player2Y, screen_mesagge, color, Player1Points, Player2Points } from "./com.js";
 //Game variables
 let canvas;
 let ctx;
@@ -15,10 +15,12 @@ let wait;
 let finish;
 let gameCoord;
 let connect = 0;
+let x;
+
 
 //constants  
 const BALL_SIZE = 10;
-const PADDLE_SPEED = 6;
+//const PADDLE_SPEED = 6;
 const PADDLE_HEIGHT = 100;
 const PADDLE_WIDTH = 10;
 
@@ -79,87 +81,91 @@ export function initializeGame() {
 		//join();
 		connect = 1;
 	}
-	deactivateKeydown();
+	//deactivateKeydown();
 	updateScore();
     gameLoop();
 }
 
-async function otraFuncion() {
-    // Hacer algo asíncrono
-	showWinMessage("3");
-    await new Promise((resolve) => setTimeout(resolve, 800));
-	showWinMessage("2");
-	await new Promise((resolve) => setTimeout(resolve, 800));
-	showWinMessage("1");
-	await new Promise((resolve) => setTimeout(resolve, 800));
-}
-
-// Llamar a otraFuncion y luego ejecutar refresh
-async function ejecutar() {
-    await otraFuncion();
-    refresh();
-}
-
-function handleSpacePress(event) {
-    if (event.key === ' ') {
-        initializeGame();
-    }
-}
-
-function deactivateKeydown() {
-	document.removeEventListener('keydown', handleSpacePress);
-}
 
 function gameLoop() {
 	
-	cleanCanva();
-	drawCanva();
-	
-	if (wait == true)
+	if(game_state == "playing")
 	{
-		if (finish) {
-            terminateGame();
-            // Añadimos el listener para la tecla 'space'
-            document.addEventListener('keydown', handleSpacePress);
-        }
+		if (x != ballx)
+		{
+			cleanCanva();
+			console.log("PINTA!");
+			x = ballx;
+			drawCanva();
+		}
 		else
-			ejecutar();
-		wait = false;
+			console.log("NO PINTA!");
 	}
-	else
-		refresh();
+	else if (game_state == "waiting")
+		showMessage(screen_mesagge, color);
+
+	refresh();	
 }
 
-function drawRect(x, y, w, h, color) {
+
+/* function drawRect(x, y, w, h, color) {
 	ctx.fillStyle = color;
 	ctx.fillRect(x, y, w, h);
 }
 
 function drawBall(x, y, size, color) {
+	
 	ctx.fillStyle = color;
 	ctx.beginPath();
 	ctx.arc(x, y, size, 0, Math.PI * 2);
 	ctx.fill();
+} */
+
+function drawRect(x, y) {
+	ctx.fillStyle = 'white';
+	ctx.fillRect(x, y, 10, 100);
+}
+
+function drawBall(x, y) {
+	
+	ctx.fillStyle = 'yellow';
+	ctx.beginPath();
+	ctx.arc(x, y, 10, 0, 6.28318);
+	ctx.fill();
+}
+
+function drawDashedLine() {
+    ctx.beginPath();
+    ctx.setLineDash([5, 5]); // Define el patrón de línea discontinua
+    ctx.moveTo(canvas.width / 2, 0); // Comienza en la parte superior
+    ctx.lineTo(canvas.width / 2, canvas.height); // Termina en la parte inferior
+    ctx.strokeStyle = 'white'; // Color de la línea
+    ctx.lineWidth = 1; // Ancho de la línea
+    ctx.stroke();
+    ctx.setLineDash([]); // Restablece el patrón de línea a sólido
 }
 
 function cleanCanva()
 {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	//canvas.width = canvas.width;
 }
 
 function drawCanva()
 {
-	gameCoord = getGamePositions();
-	drawRect(0, gameCoord[2], PADDLE_WIDTH, PADDLE_HEIGHT, 'white');
-	drawRect(canvas.width - PADDLE_WIDTH, gameCoord[3], PADDLE_WIDTH, PADDLE_HEIGHT, 'white');
-	drawBall(gameCoord[0], gameCoord[1], BALL_SIZE, 'white');
-	//drawBall(ballX, ballY, BALL_SIZE, 'white');
+	/* drawRect(0, Player1Y, PADDLE_WIDTH, PADDLE_HEIGHT, 'white');
+	drawRect(canvas.width - PADDLE_WIDTH, Player2Y, PADDLE_WIDTH, PADDLE_HEIGHT, 'white');
+	drawBall(ballx, bally, BALL_SIZE, 'white'); */
+	drawRect(0, Player1Y);
+	drawRect(590, Player2Y);
+	drawDashedLine();
+	drawBall(ballx, bally);
 }
 
-function updateScore()
+export function updateScore()
 {
-	document.getElementById('player1-score').textContent = 'Player 1: ' + player1Score;
-	document.getElementById('player2-score').textContent = 'Player 2: ' + player2Score;
+	document.getElementById('player1-score').textContent = 'Player 1: ' + Player1Points;
+	document.getElementById('player2-score').textContent = 'Player 2: ' + Player2Points;
 }
 
 function refresh() {
@@ -175,9 +181,9 @@ export function terminateGame() {
 		clearTimeout(timeoutId);
 }
 
-function showWinMessage(message) {
+function showMessage(message, color) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = color;
     ctx.font = '30px Arial';
     ctx.textAlign = 'center';
 

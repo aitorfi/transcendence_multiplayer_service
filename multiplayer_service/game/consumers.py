@@ -77,7 +77,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			
 			await self.init_new_game(player1, player2)
 			await self.notify_match_found(player1, player2)
-			await asyncio.sleep(1)
+			#await asyncio.sleep(1)
 			asyncio.create_task(self.update_ball(self.room_id))
 			await self.notify_start_game(player1, player2)
 
@@ -91,14 +91,17 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			'player2': player2,
 			'game_state': {
 				'player1Y': 150,
+				'Player1Points': 0,
 				'player1up': False,
 				'player1down': False,
 				'player2Y': 150,
+				'Player2Points': 0,
 				'player2up': False,
 				'player2down': False,
+				'paddleSpeed': 12,
 				'ball': {
 					'position': {'x': 300, 'y': 200},
-					'speed': {'x': 1, 'y': 0.1}
+					'speed': {'x': 10, 'y': 1}
 				}
 			}
 		}
@@ -106,16 +109,64 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 		player1.room_id = room_id
 		player2.room_id = room_id
 
+	async def countdown(self, player1, player2):
+		await player1.send(text_data=json.dumps({
+			'type': 'new_message',
+			'messagge': '3',
+			'color':  'palegreen'
+		}))
+		await player2.send(text_data=json.dumps({
+			'type': 'new_message',
+			'messagge': '3',
+			'color':  'palegreen'
+		}))
+		await asyncio.sleep(1)
+		await player1.send(text_data=json.dumps({
+			'type': 'new_message',
+			'messagge': '2',
+			'color':  'palegreen'
+		}))
+		await player2.send(text_data=json.dumps({
+			'type': 'new_message',
+			'messagge': '2',
+			'color':  'palegreen'
+		}))
+		await asyncio.sleep(1)
+		await player1.send(text_data=json.dumps({
+			'type': 'new_message',
+			'messagge': '1',
+			'color':  'palegreen'
+		}))
+		await player2.send(text_data=json.dumps({
+			'type': 'new_message',
+			'messagge': '1',
+			'color':  'palegreen'
+		}))
+		await asyncio.sleep(1)
+		await player1.send(text_data=json.dumps({
+			'type': 'start_game',
+		}))
+		await player2.send(text_data=json.dumps({
+			'type': 'start_game',
+		}))
+		
+
 	async def notify_match_found(self, player1, player2):
 		# Notificar a ambos jugadores que están emparejados y la partida va a empezar
 		await player1.send(text_data=json.dumps({
 			'type': 'match_found',
-			'room': player1.room_id
+			'room': player1.room_id,
+			'messagge': '¡Mach Found!',
+			'color':  'palegreen'
 		}))
 		await player2.send(text_data=json.dumps({
 			'type': 'match_found',
-			'room': player2.room_id
+			'room': player2.room_id,
+			'messagge': '¡Mach Found!',
+			'color':  'palegreen'
 		}))
+		await asyncio.sleep(1)
+		await self.countdown(player1, player2)
 
 	async def notify_start_game(self, player1, player2):
 		# Iniciar el juego enviando un mensaje de sincronización a ambos jugadores
@@ -131,16 +182,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 		movement_direction = data.get('action', 0)
 		is_player1 = room['player1'].user_id == self.user_id
 		#print(f"amos pulsao tecla {movement_direction}")
-		""" if movement_direction == 'upOn':
-			if is_player1:
-				room['game_state']['player1Y'] -= 1
-			else:
-				room['game_state']['player2Y'] -= 1
-		elif movement_direction == 'downOn':
-			if is_player1:
-				room['game_state']['player1Y'] += 1
-			else:
-				room['game_state']['player2Y'] += 1 """
+		
 		if movement_direction == 'upOn':
 			if is_player1:
 				room['game_state']['player1up'] = True
@@ -170,13 +212,20 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 		#await self.send_game_state_update(room)
 
 	async def send_game_state_update(self, room):
+
 		await room['player1'].send(text_data=json.dumps({
 			'type': 'game_state_update',
-			'game_state': room['game_state']
+			'player1Y': room['game_state']['player1Y'],
+			'player2Y': room['game_state']['player2Y'],
+			'ballX': room['game_state']['ball']['position']['x'],
+			'ballY': room['game_state']['ball']['position']['y'],
 		}))
 		await room['player2'].send(text_data=json.dumps({
 			'type': 'game_state_update',
-			'game_state': room['game_state']
+			'player1Y': room['game_state']['player1Y'],
+			'player2Y': room['game_state']['player2Y'],
+			'ballX': room['game_state']['ball']['position']['x'],
+			'ballY': room['game_state']['ball']['position']['y'],
 		}))
 
 	async def update_ball(self, room_id):
@@ -185,65 +234,239 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 		De momento el bucle es infinito pero hay que gestionar
 		que acabe cuando la partida acaba o algún jugador se desconecta
 		"""
-		speedVariation = 0.3
+
+		incrementedSpeed = 0
+		angleVariation = 1
+		speedIncrement = 0.5
 		playing =True
 		ball_speed = room['game_state']['ball']['speed']
+		ball_position = room['game_state']['ball']['position']
+		speedX = room['game_state']['ball']['speed']['x']
+		speedY = room['game_state']['ball']['speed']['y']
+		totalSpeed = room['game_state']['ball']['speed']['x'] + room['game_state']['ball']['speed']['y']
 
 		while playing:
-			ball_position = room['game_state']['ball']['position']
+			#print(f"p1: {room['game_state']['Player1Points']}    p2: {room['game_state']['Player1Points']}")
 
-			ball_position['x'] += ball_speed['x']
-			ball_position['y'] += ball_speed['y']
+			ball_position['x'] += speedX
+			ball_position['y'] += speedY
 
 			if ball_position["y"] >= 390 or ball_position["y"] <= 10:
-				ball_speed["y"] *= -1
+				speedY *= -1
+				#print("ARRIBA-ABAJO")
 
-			if ball_position["x"] >= 590:
-				ball_speed["x"] *= -1
+#----------------LEFT COLISION----------------------------------------------------------------------------
 
 			if ball_position["x"] <= 10:
 				if (ball_position["y"] >= room['game_state']['player1Y'] and 
 				ball_position["y"] < room['game_state']['player1Y'] + 33.3):
-					ball_speed["x"] *= -1
-					print(f"arriba   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
-					if ball_speed['y'] <= 0:
-						if abs(ball_speed["x"]) > abs(ball_speed["y"]):
-							ball_speed["x"] -= speedVariation
-							ball_speed['y'] -= speedVariation
+					speedX *= -1
+					#print(f"arriba   x = {speedX:.1f}   y = {speedY:.1f}")
+					if speedY <= 0:
+						if abs(speedX) > abs(speedY):
+							speedX -= angleVariation
+							speedY -= angleVariation
 					else:
-						ball_speed["y"] -= speedVariation
-						ball_speed["x"] = 1.1 - abs(ball_speed["y"])
-					print(f"arriba   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
+						speedY -= angleVariation
+						speedX = totalSpeed - abs(speedY)
+					#print(f"LEFT ARRIBA  {speedY}")
 				elif (ball_position["y"] >= room['game_state']['player1Y'] + 33.3 and 
 				ball_position["y"] < room['game_state']['player1Y'] + 66.6):
-					ball_speed["x"] *= -1
-					print(f"medio   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
+					speedX *= -1
+					#print(f"LEFT MEDIO  {speedY}")
 				elif (ball_position["y"] >= room['game_state']['player1Y'] + 66.6 and 
 				ball_position["y"] < room['game_state']['player1Y'] + 100):
-					ball_speed["x"] *= -1
-					print(f"abajo   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
-					if ball_speed['y'] >= 0:
-						if abs(ball_speed["x"]) > abs(ball_speed["y"]):
-							ball_speed["x"] -= speedVariation
-							ball_speed["y"] += speedVariation
+					speedX *= -1
+					#print(f"abajo   x = {speedX:.1f}   y = {speedY:.1f}")
+					if speedY >= 0:
+						if abs(speedX) > abs(speedY):
+							speedX -= angleVariation
+							speedY += angleVariation
 					else:
-						ball_speed["y"] += speedVariation
-						ball_speed["x"] = 1.1 - abs(ball_speed["y"])
-					print(f"abajo   x = {ball_speed['x']:.1f}   y = {ball_speed['y']:.1f}")
-				else:
-					playing = False
-				
-
+						speedY += angleVariation
+						speedX = totalSpeed - abs(speedY)
+					#print(f"LEFT ABAJO  {speedY}")
 			
-			if room['game_state']['player1up'] and room['game_state']['player1Y'] > 0:
-				room['game_state']['player1Y'] -= 1
-			if room['game_state']['player1down'] and room['game_state']['player1Y'] < 300:
-				room['game_state']['player1Y'] += 1
-			if room['game_state']['player2up'] and room['game_state']['player2Y'] > 0:
-				room['game_state']['player2Y'] -= 1
-			if room['game_state']['player2down'] and room['game_state']['player2Y'] < 300:
-				room['game_state']['player2Y'] += 1
+				else:
+					await self.marker_update(room, 2)
+					incrementedSpeed = 0
+					speedX = room['game_state']['ball']['speed']['x']
+					speedY = room['game_state']['ball']['speed']['y']
+					#print(f"p1: {room['game_state']['Player1Points']}    p2: {room['game_state']['Player1Points']}")
+					if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
+						playing = False
+						if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
+							await room['player1'].send(text_data=json.dumps({
+								'type': 'finish',
+								'messagge': '¡You WIN!',
+								'color':  'palegreen',
+								'player1Points': room['game_state']['Player1Points'],
+								'player2Points': room['game_state']['Player2Points'],
+							}))
+							await room['player2'].send(text_data=json.dumps({
+								'type': 'finish',
+								'messagge': 'You LOSE \n(you piece of shit)',
+								'color':  'red',
+								'player1Points': room['game_state']['Player1Points'],
+								'player2Points': room['game_state']['Player2Points'],
+							}))
+						else:
+							await room['player1'].send(text_data=json.dumps({
+								'type': 'finish',
+								'messagge': 'You LOSE \n(you piece of shit)',
+								'color':  'red',
+								'player1Points': room['game_state']['Player1Points'],
+								'player2Points': room['game_state']['Player2Points'],
+							}))
+							await room['player2'].send(text_data=json.dumps({
+								'type': 'finish',
+								'messagge': 'You WIN',
+								'color':  'palegreen',
+								'player1Points': room['game_state']['Player1Points'],
+								'player2Points': room['game_state']['Player2Points'],
+							}))
+					else:
+						await room['player1'].send(text_data=json.dumps({
+							'type': 'update',
+							'player1Points': room['game_state']['Player1Points'],
+							'player2Points': room['game_state']['Player2Points'],
+						}))
+						await room['player2'].send(text_data=json.dumps({
+							'type': 'update',
+							'player1Points': room['game_state']['Player1Points'],
+							'player2Points': room['game_state']['Player2Points'],
+						}))
+						await self.countdown(room['player1'], room['player2'])
+						continue
 
+				
+				ball_position["x"] = 11
+				speedX += speedIncrement
+				if speedY <= 0:
+					speedY -= speedIncrement
+				else:
+					speedY += speedIncrement
+				incrementedSpeed += speedIncrement 
+			
+			
+#----------------RIGHT COLISION----------------------------------------------------------------------------
+
+			if ball_position["x"] >= 590:
+				if (ball_position["y"] >= room['game_state']['player2Y'] and 
+				ball_position["y"] < room['game_state']['player2Y'] + 33.3):
+					speedX *= -1
+					#print(f"arriba   x = {speedX:.1f}   y = {speedY:.1f}")
+					if speedY <= 0:
+						if abs(speedX) > abs(speedY):
+							speedX += angleVariation
+							speedY -= angleVariation
+					else:
+						speedY -= angleVariation
+						speedX = - totalSpeed + abs(speedY)
+					#print(f"RIGHT ARRIBA  {speedY}")
+				elif (ball_position["y"] >= room['game_state']['player2Y'] + 33.3 and 
+				ball_position["y"] < room['game_state']['player2Y'] + 66.6):
+					speedX *= -1
+					#print(f"RIGHT MEDIO  {speedY}")
+				elif (ball_position["y"] >= room['game_state']['player2Y'] + 66.6 and 
+				ball_position["y"] < room['game_state']['player2Y'] + 100):
+					speedX *= -1
+					#print(f"abajo   x = {speedX:.1f}   y = {speedY:.1f}")
+					if speedY >= 0:
+						if abs(speedX) > abs(speedY):
+							speedX += angleVariation
+							speedY += angleVariation
+					else:
+						speedY += angleVariation
+						speedX = - totalSpeed + abs(speedY)
+					#print(f"RIGHT ABAJO  {speedY}")
+			
+				else:
+					await self.marker_update(room, 1)
+					incrementedSpeed = 0
+					speedX = -room['game_state']['ball']['speed']['x']
+					speedY = room['game_state']['ball']['speed']['y']
+					
+					if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
+						playing = False
+						if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
+							await room['player1'].send(text_data=json.dumps({
+								'type': 'finish',
+								'messagge': '¡You WIN!',
+								'color':  'palegreen',
+								'player1Points': room['game_state']['Player1Points'],
+								'player2Points': room['game_state']['Player2Points'],
+							}))
+							await room['player2'].send(text_data=json.dumps({
+								'type': 'finish',
+								'messagge': 'You LOSE \n(you piece of shit)',
+								'color':  'red',
+								'player1Points': room['game_state']['Player1Points'],
+								'player2Points': room['game_state']['Player2Points'],
+							}))
+						else:
+							await room['player1'].send(text_data=json.dumps({
+								'type': 'finish',
+								'messagge': 'You LOSE \n(you piece of shit)',
+								'color':  'red',
+								'player1Points': room['game_state']['Player1Points'],
+								'player2Points': room['game_state']['Player2Points'],
+							}))
+							await room['player2'].send(text_data=json.dumps({
+								'type': 'finish',
+								'messagge': 'You WIN',
+								'color':  'palegreen',
+								'player1Points': room['game_state']['Player1Points'],
+								'player2Points': room['game_state']['Player2Points'],
+							}))
+					else:
+						await room['player1'].send(text_data=json.dumps({
+							'type': 'update',
+							'player1Points': room['game_state']['Player1Points'],
+							'player2Points': room['game_state']['Player2Points'],
+						}))
+						await room['player2'].send(text_data=json.dumps({
+							'type': 'update',
+							'player1Points': room['game_state']['Player1Points'],
+							'player2Points': room['game_state']['Player2Points'],
+						}))
+						await self.countdown(room['player1'], room['player2'])
+						continue
+
+				
+				ball_position["x"] = 589
+				speedX -= speedIncrement
+				if speedY <= 0:
+					speedY -= speedIncrement
+				else:
+					speedY += speedIncrement
+				incrementedSpeed += speedIncrement 
+
+			# Movimiento de las palas
+			if room['game_state']['player1up'] and room['game_state']['player1Y'] > 0:
+				room['game_state']['player1Y'] -= room['game_state']['paddleSpeed']
+			if room['game_state']['player1down'] and room['game_state']['player1Y'] < 300:
+				room['game_state']['player1Y'] += room['game_state']['paddleSpeed']
+			if room['game_state']['player2up'] and room['game_state']['player2Y'] > 0:
+				room['game_state']['player2Y'] -= room['game_state']['paddleSpeed']
+			if room['game_state']['player2down'] and room['game_state']['player2Y'] < 300:
+				room['game_state']['player2Y'] += room['game_state']['paddleSpeed']
+
+			totalSpeed = abs(speedX) + abs(speedY)
+			#print(f"V total = {totalSpeed}")
 
 			await self.send_game_state_update(room)
-			await asyncio.sleep(0.002)  # Actualizar la pelota cada x ms
+			await asyncio.sleep(0.030)  #  0.002Actualizar la pelota cada x ms
+
+
+	async def marker_update(self, room, player):
+		if player == 1:
+			room['game_state']['Player1Points'] += 1
+		else:
+			room['game_state']['Player2Points'] += 1
+
+		room['game_state']['ball']['position']['x'] = 300
+		room['game_state']['ball']['position']['y'] = 200
+		
+		room['game_state']['player1Y'] = 150
+		room['game_state']['player2Y'] = 150
