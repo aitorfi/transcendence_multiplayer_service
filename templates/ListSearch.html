@@ -1,0 +1,28 @@
+<div class="container mt-5">
+    <!-- Card principal -->
+    <div class="card mx-auto mb-4 border-dark" style="max-width: 500px;">
+        <div class="card-header text-center bg-dark" style="color: #f6f8fa;">
+            <h5><b>Search User</b></h5>
+        </div>
+        <div class="card-body">
+            <!-- Formulario con el valor "pepe" prellenado -->
+            <p><b>Please enter username: </b></p>
+            <form id="search-user-form" class="d-flex align-items-center mb-0" style="width: 100%;">
+                <div class="mb-0 me-2" style="flex-grow: 1;">
+                    <input type="text" class="form-control" id="search-username" placeholder="Username" value="pepe" style="border: solid black; background-color: rgba(63, 63, 64, 0.106);">
+                </div>
+                <button type="submit" class="btn btn-dark text-center" style="width: 127px;"><b>Search</b></button>
+            </form> 
+            
+            <!-- Lista de usuarios con botón "ADD" a la derecha de cada uno -->
+            <div class="mt-4">
+                <ul class="list-group" id="results-list" style="width: 100%;">
+                    <!-- Los resultados de la búsqueda se agregarán aquí dinámicamente -->
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+

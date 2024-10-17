@@ -1,0 +1,163 @@
+body, main {
+	margin: 0;
+	padding: 0;
+	background-color: rgb(0, 179, 255)
+}
+
+nav, footer {
+    padding: 10px;
+	bottom: 0;
+    background-color: #bdbaba; /* Establece el color del footer */
+    color: #333;               /* Define el color del texto */
+    font-size: 16px;           /* Ajusta el tamaño de la fuente */
+    text-align: center;        /* Centra el contenido horizontalmente */
+    border-top: 1px solid #ccc;/* Añade un borde superior */
+    border-bottom: 1px solid #ccc; /* Añade un borde inferior */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Aplica una sombra */
+    position: absolute;       /* Controla el posicionamiento */
+    width: 100%;               /* Establece el ancho completo */
+    /* Puedes añadir más propiedades según tus necesidades */
+}
+
+nav {
+	display: flex;
+	flex-direction: column;
+}
+
+
+
+body {
+	transition: background-color 0.5s;
+}
+canvas {
+	border: 1px solid black;
+}
+#colorPickerContainer {
+	display: none;
+}
+#friendsList {
+	list-style: none;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+.friend-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px;
+	border: 1px solid #ddd;
+	margin-bottom: 5px;
+	border-radius: 5px;
+	width: 100%;
+}
+.status-indicator {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	margin-right: 10px;
+}
+.online {
+	background-color: green;
+}
+.offline {
+	background-color: red;
+}
+.friends-container {
+	background-color: #d3d3d3; /* Fondo gris claro */
+	padding: 10px;
+	border-radius: 5px;
+}
+#matchHistory {
+	background-color: #d3d3d3; /* Fondo gris claro */
+	padding: 10px;
+	border-radius: 5px;
+}
+
+.btn_profile1 {
+	width: 200px;
+	/* height: 45px; */
+}
+ 
+#search-user-form .form-control {
+    height: 35px; /* Ajusta la altura para que sea similar a la altura del navbar */
+    padding: 5px; /* Ajusta el padding si es necesario */
+}
+
+#search-user-form button {
+    height: 35px; /* Asegura que el botón tenga la misma altura que el campo de texto */
+}
+
+.spa-route {
+	cursor: pointer;
+}
+
+.container-fluid {
+	height: 100%;
+}
+.chat-list, .chat-window {
+	height: 100%;
+	overflow-y: auto;
+	border: 1px solid black;
+}
+.chat-list {
+	border-right: 1px solid #ccc;
+	background-color: #f8f9fa;
+	border: 1px solid black;
+}
+.chat-item {
+	padding: 10px;
+	cursor: pointer;
+	border-bottom: 1px solid #ddd;
+	border: 1px solid black;
+}
+.chat-item:hover {
+	background-color: #f1f1f1;
+	border: 1px solid black;
+}
+.chat-window {
+	padding: 15px;
+	background-color: #ece5dd;
+	border: 1px solid black;
+}
+.message {
+	margin-bottom: 10px;
+	padding: 10px;
+	border-radius: 10px;
+	border: 1px solid black;
+}
+.message.sent {
+	background-color: #dcf8c6;
+	text-align: right;
+	border: 1px solid black;
+}
+.message.received {
+	background-color: #fff;
+	border: 1px solid black;
+}
+.input-area {
+	background-color: #fff;
+	padding: 10px;
+	border-top: 1px solid #ddd;
+	border: 1px solid black;
+}
+
+.send-btn {
+	background-color: #25d366; /* Color de WhatsApp */
+	border: none;
+	border-radius: 50%; /* Hacer que el botón sea circular */
+	color: white;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	cursor: pointer;
+}
+.send-btn i {
+	font-size: 20px; /* Tamaño del ícono */
+}
+.send-btn:hover {
+	background-color: #128c7e; /* Color más oscuro en hover */
+}

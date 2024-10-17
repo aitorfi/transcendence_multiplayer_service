@@ -1,0 +1,51 @@
+#pong-container {
+    display: flex;
+		flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    /*position: relative;*/
+    margin: 0;
+		padding: 20px;
+    font-family: Arial, sans-serif;
+  }
+  
+#pong-container h1 {
+	/*position: absolute;*/
+	color: white;
+	font-size: 40px;
+	/*z-index: 1; /* Asegura que el título esté encima del canvas */
+	background-color: rgba(0, 0, 0, 0.5); /* Fondo negro semi-transparente para que el texto sea más visible */
+	padding: 10px;
+	border-radius: 10px;
+}
+  
+#pong-container canvas {
+	border: 2px solid white;
+	/*position: relative;*/
+	/*z-index: 0; /* El canvas debe estar detrás del título */
+}
+
+.scoreboard {
+    display: flex;
+    justify-content: space-between;  /* Asegura la separación máxima */
+    width: 40%;  /* Ocupar todo el ancho del contenedor */
+    padding: 10px;  /* Añadir espacio adicional si lo necesitas */
+}
+
+#player1-score, #player2-score  {
+	background-color: white;
+	border-radius: 12px;
+	color: black;
+	font-style: italic;
+	font-size: 24px;
+	flex-basis: 35%; /* Esto asegura que cada marcador ocupe el 45% del ancho del contenedor */
+}
+
+#player1-score {
+	text-align: center;
+}
+
+#player2-score {
+	text-align: center;
+}

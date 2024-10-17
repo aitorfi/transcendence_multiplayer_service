@@ -1,0 +1,54 @@
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> 
+<!-- link del avion de papel -->
+
+
+<div class="container-fluid">
+    <div class="row h-100">
+        <!-- Panel izquierdo: lista de chats -->
+        <div class="col-md-4 col-sm-12 chat-list p-0">
+            <div class="p-3">
+                <input type="text" class="form-control mb-3" placeholder="Buscar o empezar un chat">
+            </div>
+            <div class="chat-item">
+                <h5>Amigo 1</h5>
+                <p>Último mensaje...</p>
+            </div>
+            <div class="chat-item">
+                <h5>Amigo 2</h5>
+                <p>Último mensaje...</p>
+            </div>
+            <div class="chat-item">
+                <h5>Amigo 3</h5>
+                <p>Último mensaje...</p>
+            </div>
+        </div>
+
+        <!-- Panel derecho: ventana de chat -->
+        <div class="col-md-8 col-sm-12 chat-window">
+            <!-- Botón de atrás -->
+            <button id="back-button" class="btn btn-secondary mb-3 spa-route" data-path="/Friends">Atrás</button>
+
+            <div class="message received">
+                <p>Hola, ¿cómo estás?</p>
+                <span class="text-muted small">10:15 AM</span>
+            </div>
+            <div class="message sent">
+                <p>Bien, ¿y tú?</p>
+                <span class="text-muted small">10:16 AM</span>
+            </div>
+            <div class="message received">
+                <p>Genial, gracias!</p>
+                <span class="text-muted small">10:17 AM</span>
+            </div>
+            <!-- Input de mensaje -->
+            <div class="input-area d-flex align-items-center">
+                <input type="text" class="form-control" placeholder="Escribe un mensaje">
+                <button class="send-btn ms-2">
+                    <i class="fas fa-paper-plane"></i> <!-- Ícono de avión de papel -->
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+

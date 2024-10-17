@@ -1,0 +1,82 @@
+<div class="container mt-5">
+    <!-- Card principal -->
+    <div class="card mx-auto mb-4 border-dark" style="max-width: 600px;">
+        <div class="card-header text-center bg-dark" style="color: #f6f8fa;">
+            <h5><b>Profile</b></h5>
+        </div>
+        <div class="card-body">
+            <!-- Main profile section -->
+            <div class="container text-center">
+                <div class="position-relative">
+                    <!-- Imagen que actúa como botón -->
+                    <img id="avatarImage" src="img/avatar.jpg" alt="Avatar" class="rounded-circle" style="width: 100px; height: 100px; border: 2px solid black;">
+                    <!-- Campo de entrada de archivo oculto -->
+                    <input type="file" id="imageInput" style="display: none;" accept="image/*">
+                </div>
+                <h4><b>Username: </b><span id="username">usuario</span></h4>
+                <div class="mt-3 d-flex justify-content-center">
+                    <button class="btn btn_profile1 btn-dark mx-1 flex-item text-warning" id="changePasswordBtn"><b>Change Password</b></button>
+                    <button class="btn btn_profile1 btn-dark mx-1 flex-item text-danger" id="changeProfilelBtn"><b>Change Info</b></button>
+                    <button class="btn btn_profile1 btn-dark mx-1 flex-item" id="changeAvatarBtn"><b>Change Avatar</b></button>
+                </div>
+            </div>
+
+            <div class="mt-3 d-flex justify-content-center">
+                <!-- Columna para el avatar y la información del usuario -->
+                <div class="text-center">
+                    <input type="file" id="avatarInput" style="display: none;" accept="image/*">
+
+                    <!-- Password Change Form -->
+                    <div id="changePasswordForm" class="collapse mt-3">
+                        <div class="mb-3">
+                            <label for="currentPassword" class="form-label"><b>Current Password</b></label>
+                            <input type="password" class="form-control form-control_profile" id="currentPassword" placeholder="Enter current password" style="border: solid blue;">
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label"><b>New Password</b></label>
+                            <input type="password" class="form-control form-control_profile" id="newPassword" placeholder="Enter new password" style="border: solid red;">
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmNewPassword" class="form-label"><b>Confirm New Password</b></label>
+                            <input type="password" class="form-control form-control_profile" id="confirmNewPassword" placeholder="Confirm new password" style="border: solid green;">
+                        </div>
+                        <button class="btn btn-primary btn-light w-100" id="submitPasswordChange"><b>Submit</b></button>
+                    </div>
+
+                    <!-- Email Change Form -->
+                    <div id="changeProfileForm" class="collapse mt-3">
+                        <div class="mb-3">
+                            <label for="first_nameProfile" class="form-label"><b>First Name</b></label>
+                            <input type="text" class="form-control form-control_profile" id="first_name" style="border: solid green">
+                        </div>
+                        <div class="mb-3">
+                            <label for="last_nameProfile" class="form-label"><b>Last Name</b></label>
+                            <input type="text" class="form-control form-control_profile" id="last_name" style="border: solid purple;">
+                        </div>
+                        <div class="mb-3">
+                            <label for="friendsProfile" class="form-label"><b>Friends</b></label>
+                            <input type="text" class="form-control form-control_profile" id="friends" style="border: solid orangered;">
+                        </div>
+                        <button class="btn btn-primary btn-light w-100" id="submitProfileChange"><b>Submit</b></button>
+                    </div>
+
+                    <!-- Creation and Update dates -->
+                    <div class="mt-4">
+                        <p><b>Created at: </b><span id="date_joined">2023-09-01</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="container mt-2 spa-route" data-path="/MatchHistory" style="max-width: 500px;">
+                <!-- Cuarto botón: Local Tournament -->
+                <div class="d-flex align-items-center border rounded-2 p-2 mb-2 spa-route bg-dark" style="color: #f6f8fa; height: auto;" data-path="/MatchHistory">
+                    <i class="bi bi-list-ol text-info spa-route" style="font-size: 40px; margin-right: 10px;" data-path="/MatchHistory"></i>
+                    <div>
+                        <h5 class="mb-0 spa-route" data-path="/MatchHistory"><b class="spa-route" data-path="/MatchHistory">Match History</b></h5>
+                        <small class="text-white spa-route" data-path="/MatchHistory">Check your game stats against other players</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
