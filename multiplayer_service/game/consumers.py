@@ -42,6 +42,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 		"""Manejar mensajes recibidos de los jugadores."""
 		data = json.loads(text_data)
 		message_type = data.get('type', 0)
+		
 
 		if message_type == 'join_game':
 			await self.handle_action_join_game(data)
@@ -55,10 +56,11 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
 	async def handle_action_join_game(self, data):
 		#self.user_id = data.get('user_id', 0)
-		global id
-		print (f"id = {id}")
-		self.user_id = id
-		id += 1
+		#global id
+		message_id = data.get('user_id', 0)
+		print (f"id = {message_id}")
+		self.user_id = message_id
+		#id += 1
 		if self.user_id:
 			waiting_players.append(self)
 			await self.match_players()
@@ -244,6 +246,8 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 		speedX = room['game_state']['ball']['speed']['x']
 		speedY = room['game_state']['ball']['speed']['y']
 		totalSpeed = room['game_state']['ball']['speed']['x'] + room['game_state']['ball']['speed']['y']
+
+		#print (f"player1: {room['player1.user_id']['player1Y']}  player2: {room['player2']}")
 
 		while playing:
 			#print(f"p1: {room['game_state']['Player1Points']}    p2: {room['game_state']['Player1Points']}")
