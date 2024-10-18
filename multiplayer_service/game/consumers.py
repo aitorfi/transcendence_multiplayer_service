@@ -1,4 +1,5 @@
 import json
+import time
 import asyncio
 from channels.generic.websocket import AsyncWebsocketConsumer
 
@@ -42,7 +43,6 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 		"""Manejar mensajes recibidos de los jugadores."""
 		data = json.loads(text_data)
 		message_type = data.get('type', 0)
-		
 
 		if message_type == 'join_game':
 			await self.handle_action_join_game(data)
@@ -56,11 +56,10 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
 	async def handle_action_join_game(self, data):
 		#self.user_id = data.get('user_id', 0)
-		#global id
-		message_id = data.get('user_id', 0)
-		print (f"id = {message_id}")
-		self.user_id = message_id
-		#id += 1
+		global id
+		print (f"id = {id}")
+		self.user_id = id
+		id += 1
 		if self.user_id:
 			waiting_players.append(self)
 			await self.match_players()
@@ -213,7 +212,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			return
 		#await self.send_game_state_update(room)
 
-	async def send_game_state_update(self, room):
+	async def send_game_state_update(self, room, speedx, speedy):
 
 		await room['player1'].send(text_data=json.dumps({
 			'type': 'game_state_update',
@@ -221,6 +220,9 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			'player2Y': room['game_state']['player2Y'],
 			'ballX': room['game_state']['ball']['position']['x'],
 			'ballY': room['game_state']['ball']['position']['y'],
+			'speedX': speedx,
+			'speedY': speedy,
+			'time': time.time()
 		}))
 		await room['player2'].send(text_data=json.dumps({
 			'type': 'game_state_update',
@@ -228,6 +230,9 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			'player2Y': room['game_state']['player2Y'],
 			'ballX': room['game_state']['ball']['position']['x'],
 			'ballY': room['game_state']['ball']['position']['y'],
+			'speedX': speedx,
+			'speedY': speedy,
+			'time': time.time()
 		}))
 
 	async def update_ball(self, room_id):
@@ -246,8 +251,6 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 		speedX = room['game_state']['ball']['speed']['x']
 		speedY = room['game_state']['ball']['speed']['y']
 		totalSpeed = room['game_state']['ball']['speed']['x'] + room['game_state']['ball']['speed']['y']
-
-		#print (f"player1: {room['player1.user_id']['player1Y']}  player2: {room['player2']}")
 
 		while playing:
 			#print(f"p1: {room['game_state']['Player1Points']}    p2: {room['game_state']['Player1Points']}")
@@ -459,8 +462,8 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 			totalSpeed = abs(speedX) + abs(speedY)
 			#print(f"V total = {totalSpeed}")
 
-			await self.send_game_state_update(room)
-			await asyncio.sleep(0.030)  #  0.002Actualizar la pelota cada x ms
+			await self.send_game_state_update(room, speedX, speedY)
+			await asyncio.sleep(0.030)  #  0.030 .002Actualizar la pelota cada x ms
 
 
 	async def marker_update(self, room, player):

@@ -2,8 +2,8 @@
 
 import { updateScore } from "./game.js";
 
-//const socket = new WebSocket('ws://10.14.2.1:50002/ws/game/');
-const socket = new WebSocket('ws://127.0.0.1:50002/ws/game/');
+const socket = new WebSocket('ws://10.14.2.1:50002/ws/game/');
+//const socket = new WebSocket('ws://127.0.0.1:50002/ws/game/');
 
 const campoUserId = document.getElementById('user_id_txt_field');
 
@@ -14,10 +14,13 @@ export let screen_mesagge = "Waiting another player to join the game";
 export let color = "yellow";
 export let ballx;
 export let bally;
+export let speedx;
+export let speedy;
 export let Player1Y;
 export let Player2Y;
 export let Player1Points = 0;
 export let Player2Points = 0;
+export let serverTime;
 let coord;
 
 export function getGamePositions()
@@ -58,6 +61,9 @@ socket.onmessage = function(event) {
         bally = mensaje.ballY;
         Player1Y = mensaje.player1Y;
         Player2Y = mensaje.player2Y;
+        serverTime = mensaje.time;
+        speedx = mensaje.speedX;
+        speedy = mensaje.speedY;
         //console.log("game update");
     }
     else if (mensaje.type == "start_game")

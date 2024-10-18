@@ -17,8 +17,8 @@ daphne -p 50002 multiplayer_service.asgi:application
 
 python3 -m daphne -p 50002 multiplayer_service.asgi:application //Este si, el anterior no va
 
-python3 -m daphne -b 0.0.0.0 -p 50002 multiplayer_service.asgi:application // Este
-expone daphne para que se pueda acceder desde otro puesto
+python3 -m daphne -b 0.0.0.0 -p 50002 multiplayer_service.asgi:application # Este
+#expone daphne para que se pueda acceder desde otro puesto
 ```
 
 ## Testeo
