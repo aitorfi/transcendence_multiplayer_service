@@ -1,0 +1,10 @@
+services:
+  multiplayer-service:
+    container_name: multiplayer_service
+    build: .
+    image: multiplayer_service
+    ports:
+      - 50001:8080
+    volumes:
+      - ./multiplayer_service:/usr/src/app
+    restart: unless-stopped
