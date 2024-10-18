@@ -3,9 +3,12 @@
 ## Dependencias
 
 Para usar el proyecto hay que instalar los paquetes `channels` y `daphne` de python:
-
+        aiohttp -> lo utilizaremos para pasar 
+            los datos de las partidas del servidor de partidas al backend de torneos
+            
 ```bash
-pip install channels daphne
+pip install channels daphne aiohttp   
+
 ```
 
 ## Ejecutar el servidor
