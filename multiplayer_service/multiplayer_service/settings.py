@@ -26,7 +26,7 @@ SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'en la playa se esta mejor que aqu
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
