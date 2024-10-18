@@ -1,7 +1,7 @@
 'use strict'
 
 import { getGamePositions, join, button } from "./com.js";
-import { game_state,ballx, bally, Player1Y, Player2Y, screen_mesagge, color, Player1Points, Player2Points } from "./com.js";
+import { game_state,ballx, bally, Player1Y, Player2Y, screen_mesagge, color, Player1Points, Player2Points, serverTime, speedx, speedy } from "./com.js";
 //Game variables
 let canvas;
 let ctx;
@@ -16,6 +16,10 @@ let finish;
 let gameCoord;
 let connect = 0;
 let x;
+let latency;
+let localTime;
+let fX;
+let fY;
 
 
 //constants  
@@ -94,12 +98,14 @@ function gameLoop() {
 		if (x != ballx)
 		{
 			cleanCanva();
-			console.log("PINTA!");
+			//console.log("PINTA!");
 			x = ballx;
 			drawCanva();
 		}
-		else
-			console.log("NO PINTA!");
+		/* else
+		{
+			//console.log("NO PINTA!");
+		} */
 	}
 	else if (game_state == "waiting")
 		showMessage(screen_mesagge, color);
@@ -126,11 +132,19 @@ function drawRect(x, y) {
 	ctx.fillRect(x, y, 10, 100);
 }
 
-function drawBall(x, y) {
-	
+function drawBall() {
+	//console.log("Front time: ", Date.now() / 1000, "    Back time: ", serverTime)
+	//console.log("Speed X: ", speedx, "    Speed Y: ", speedy)
+	//console.log("latency: ", latency)
 	ctx.fillStyle = 'yellow';
 	ctx.beginPath();
-	ctx.arc(x, y, 10, 0, 6.28318);
+	
+	latency = (Date.now() / 1000) - serverTime;
+	fX = ballx + speedx * latency;
+	fY = bally + speedy * latency;
+	
+	ctx.arc(fX, fY, 10, 0, 6.28318);
+	//ctx.arc(ballx, bally, 10, 0, 6.28318);
 	ctx.fill();
 }
 
@@ -159,7 +173,8 @@ function drawCanva()
 	drawRect(0, Player1Y);
 	drawRect(590, Player2Y);
 	drawDashedLine();
-	drawBall(ballx, bally);
+	drawBall();
+	//drawBall(ballx, bally);
 }
 
 export function updateScore()
