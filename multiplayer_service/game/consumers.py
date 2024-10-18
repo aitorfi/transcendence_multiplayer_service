@@ -43,13 +43,26 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
         self.player2_display_name = None
 
 
-    async def send_game_result(self, winner_id, loser_id, winner_points, loser_points):
+    async def send_game_result(self, player1_score, player2_score, tournament_id, match_type):
+        print(f"El juego sigue aqui")
         url = "http://localhost:60000/api/matches2/game-results/"  # Reemplaza con la URL correcta
+        print(f"Seguro que aqui no va")
+        winner = 0
+        if player1_score > player2_score:
+            winner = self.player1_user_id
+        else:
+            winner = self.player2_user_id
+    
         data = {
-            "winner_id": winner_id,
-            "loser_id": loser_id,
-            "winner_points": winner_points,
-            "loser_points": loser_points
+            "player1_id": self.player1_user_id,
+            "player2_id": self.player2_user_id,
+            "player1_display_name": self.player1_display_name,
+            "player2_display_name": self.player2_display_name,
+            "player1_score": player1_score,
+            "player2_score":  player2_score,
+            "match_type": match_type,
+            "winner_id": winner,
+            "tournament_id": tournament_id,
         }
         print("Enviando conexion para enviar datos.")
         async with aiohttp.ClientSession() as session:
@@ -57,7 +70,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                 if response.status == 200:
                     print("Resultado enviado exitosamente")
                 else:
-                    print(f"Error al enviar resultado: {response.status}")
+                    print(f"Error al enviar resultado: {response.status}") 
 
 
     async def connect(self):
@@ -396,6 +409,8 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                     speedY = room['game_state']['ball']['speed']['y']
                     #print(f"p1: {room['game_state']['Player1Points']}    p2: {room['game_state']['Player1Points']}")
                     if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
+                        print(f"Ganador: {'winner'}")
+                        await self.send_game_result(room['game_state']['Player1Points'], room['game_state']['Player2Points'], 0, 'INDIVIDUAL')
                         playing = False
                         if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
                             await room['player1'].send(text_data=json.dumps({
@@ -490,6 +505,8 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                     speedY = room['game_state']['ball']['speed']['y']
                     
                     if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
+                        await self.send_game_result(room['game_state']['Player1Points'], room['game_state']['Player2Points'], 0, 'INDIVIDUAL')
+                        print(f"Ganador: {'winner'}")
                         playing = False
                         if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
                             await room['player1'].send(text_data=json.dumps({
