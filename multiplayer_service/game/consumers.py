@@ -11,8 +11,13 @@ from django.conf import settings
 # Diccionario global para mantener a los jugadores esperando
 waiting_players = []
 
+waiting_semifinal_players = []
+
+waiting_final_players = []
+
 # Diccionario para almacenar las salas activas (por simplicidad, puede ser reemplazado por una base de datos)
 active_rooms = {}
+
 
 id = 1
 
@@ -28,7 +33,14 @@ def decode_jwt_token(token):
     except jwt.InvalidTokenError:
         print("El token ha expirado")
         return None
-    
+ 
+def print_object_attributes(obj):
+    attributes = {key: value for key, value in vars(obj).items() if not key.startswith('__')}
+    print(f"Atributos de {type(obj).__name__}:")
+    for key, value in attributes.items():
+        print(f"  {key}: {value}")
+
+
 
 
 class GameMatchmakingConsumer(AsyncWebsocketConsumer):
@@ -36,33 +48,27 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.player1_user_id = None
-        self.player1_display_name = None
-        
-        self.player2_user_id = None
-        self.player2_display_name = None
 
-
-    async def send_game_result(self, player1_score, player2_score, tournament_id, match_type):
+    async def send_game_result(self, room):
    
         url = "http://localhost:60000/api/matches2/game-results/"  # Reemplaza con la URL correcta
         print(f"Seguro que aqui no va")
         winner = 0
-        if player1_score > player2_score:
-            winner = self.player1_user_id
+        if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
+            winner =  room['game_state']['player1_id']
         else:
-            winner = self.player2_user_id
+            winner =  room['game_state']['player2_id']
     
         data = {
-            "player1_id": self.player1_user_id,
-            "player2_id": self.player2_user_id,
-            "player1_display_name": self.player1_display_name,
-            "player2_display_name": self.player2_display_name,
-            "player1_score": player1_score,
-            "player2_score":  player2_score,
-            "match_type": match_type,
+            "player1_id": room['game_state']['player1_id'],
+            "player2_id": room['game_state']['player2_id'],
+            "player1_display_name": room['game_state']['player1_display_name'],
+            "player2_display_name": room['game_state']['player2_display_name'],
+            "player1_score": room['game_state']['Player1Points'],
+            "player2_score":  room['game_state']['Player2Points'],
+            "match_type": room['game_state']['match_type'],
             "winner_id": winner,
-            "tournament_id": tournament_id,
+            "tournament_id": room['game_state']['tournament_id'],
         }
         print(f"El juego sigue aqui: {data}")
         print("Enviando conexion para enviar datos.")
@@ -75,9 +81,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
 
     async def connect(self):
-        self.game_type = self.scope['url_route']['kwargs']['game_type']
-        self.game_id = self.scope['url_route']['kwargs']['game_id']
-        
+       
         """Cuando un cliente se conecta al WebSocket."""
         print("se ha conectado un cliente")
         await self.accept()  # Acepta la conexión del WebSocket
@@ -119,21 +123,33 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                 'message': "Bad request, parameter 'type' is mandatory"
             }))
 
+
+
     async def handle_action_join_game(self, data):
-        #self.user_id = data.get('user_id', 0)
-        
+
         payload = decode_jwt_token(data['token'])
         print(f"Token decodificado: {payload}")
 
         self.user_id = payload.get('user_id')
         self.display_name = payload.get('display_name')
-        print(f"Cliente autenticado - ID: {self.user_id}, Nombre: {self.display_name}, Tipo Torneo: {self.game_type}, ")
+        self.game_type = data.get('game_type')
+        self.game_id = data.get('game_id') 
+
+
+        print(f"Cliente autenticado - ID: {self.user_id}, Nombre: {self.display_name}, ")
 
         global id
    
+        print_object_attributes(self)
         id = self.user_id
         if self.user_id:
-            waiting_players.append(self)
+                      
+            if self.game_type == 'SEMIFINAL':
+                waiting_semifinal_players.append(self)
+            elif self.game_type == 'FINAL':
+                waiting_final_players.append(self)
+            else: 
+                waiting_players.append(self)
             await self.match_players()
         else:
             await self.send(text_data=json.dumps({
@@ -173,14 +189,55 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             print(f"Emparejando jugadores:")
             print(f"Player 1 - ID: {player1.user_id}, Nombre: {player1.display_name}")
             print(f"Player 2 - ID: {player2.user_id}, Nombre: {player2.display_name}")
+            print(f"Emparejando type:{self.game_type}")
+            print(f"Emparejando id:{self.game_id}")
 
             await self.init_new_game(player1, player2)
             await self.notify_match_found(player1, player2)
             #await asyncio.sleep(1)
             asyncio.create_task(self.update_ball(self.room_id))
+            await self.init_new_game(player1, player2, 'INDIVIDUAL', 0)
+        elif len(waiting_semifinal_players) >= 4:
+            player1 = waiting_semifinal_players.pop(0)
+            player2 = waiting_semifinal_players.pop(0)
+      
+            self.player1_user_id = player1.user_id
+            self.player1_display_name = player1.display_name
+            self.player2_user_id = player2.user_id
+            self.player2_display_name = player2.display_name
+     
+
+            print(f"Emparejando jugadores Grupo A:")
+            print(f"Player 1 - ID: {player1.user_id}, Nombre: {player1.display_name}")
+            print(f"Player 2 - ID: {player2.user_id}, Nombre: {player2.display_name}")
+
+
+            await self.init_new_game(player1, player2, 'SEMIFINAL', 0)
+            await self.notify_match_found(player1, player2)
+            #await asyncio.sleep(1)
+            asyncio.create_task(self.update_ball(f"room_{player1.user_id}_{player2.user_id}"))
+            await self.notify_start_game(player1, player2)
+ 
+            player1 = waiting_semifinal_players.pop(0)
+            player2 = waiting_semifinal_players.pop(0)
+      
+            self.player1_user_id = player1.user_id
+            self.player1_display_name = player1.display_name
+            self.player2_user_id = player2.user_id
+            self.player2_display_name = player2.display_name
+
+            print(f"Emparejando jugadores Grupo B:")
+            print(f"Player 1 - ID: {player1.user_id}, Nombre: {player1.display_name}")
+            print(f"Player 2 - ID: {player2.user_id}, Nombre: {player2.display_name}")
+
+            await self.init_new_game(player1, player2, 'SEMIFINAL', 0)
+            await self.notify_match_found(player1, player2)
+            #await asyncio.sleep(1)
+            asyncio.create_task(self.update_ball(f"room_{player1.user_id}_{player2.user_id}"))
             await self.notify_start_game(player1, player2)
 
-    async def init_new_game(self, player1, player2):
+
+    async def init_new_game(self, player1, player2, match_type, tournament_id):
         # Crear una nueva sala para la partida
         room_id = f"room_{player1.user_id}_{player2.user_id}"
 
@@ -207,6 +264,12 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             'player1': player1,
             'player2': player2,
             'game_state': {
+                'player1_id': self.player1_user_id,
+                'player1_display_name': self.player1_display_name,                  
+                'player2_id': self.player2_user_id,
+                'player2_display_name': self.player2_display_name,   
+                'match_type': match_type,
+                'tournament_id': tournament_id,                
                 'player1Y': 150,
                 'Player1Points': 0,
                 'player1up': False,
@@ -222,9 +285,10 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                 }
             }
         }
-        
         player1.room_id = room_id
         player2.room_id = room_id
+
+
 
     async def countdown(self, player1, player2):
         await player1.send(text_data=json.dumps({
@@ -417,8 +481,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                     speedY = room['game_state']['ball']['speed']['y']
                     #print(f"p1: {room['game_state']['Player1Points']}    p2: {room['game_state']['Player1Points']}")
                     if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
-                        print(f"Ganador: {'winner'}")
-                        await self.send_game_result(room['game_state']['Player1Points'], room['game_state']['Player2Points'], 0, self.game_type)
+                        await self.send_game_result(room)
                         playing = False
                         if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
                             await room['player1'].send(text_data=json.dumps({
@@ -513,7 +576,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                     speedY = room['game_state']['ball']['speed']['y']
                     
                     if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
-                        await self.send_game_result(room['game_state']['Player1Points'], room['game_state']['Player2Points'], 0, self.game_type)
+                        await self.send_game_result(room)
                         print(f"Ganador: {'winner'}")
                         playing = False
                         if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
