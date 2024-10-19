@@ -44,7 +44,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
 
     async def send_game_result(self, player1_score, player2_score, tournament_id, match_type):
-        print(f"El juego sigue aqui")
+   
         url = "http://localhost:60000/api/matches2/game-results/"  # Reemplaza con la URL correcta
         print(f"Seguro que aqui no va")
         winner = 0
@@ -64,6 +64,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             "winner_id": winner,
             "tournament_id": tournament_id,
         }
+        print(f"El juego sigue aqui: {data}")
         print("Enviando conexion para enviar datos.")
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=data) as response:
@@ -74,6 +75,9 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
 
     async def connect(self):
+        self.game_type = self.scope['url_route']['kwargs']['game_type']
+        self.game_id = self.scope['url_route']['kwargs']['game_id']
+        
         """Cuando un cliente se conecta al WebSocket."""
         print("se ha conectado un cliente")
         await self.accept()  # Acepta la conexión del WebSocket
@@ -123,7 +127,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
         self.user_id = payload.get('user_id')
         self.display_name = payload.get('display_name')
-        print(f"Cliente autenticado - ID: {self.user_id}, Nombre: {self.display_name}")
+        print(f"Cliente autenticado - ID: {self.user_id}, Nombre: {self.display_name}, Tipo Torneo: {self.game_type}, ")
 
         global id
    
@@ -185,12 +189,16 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             'type': 'setName',
             'player1DisplayName' : self.player1_display_name,
             'player2DisplayName' : self.player2_display_name,
+            'player1Id' : self.player1_user_id,
+            'player2Id' : self.player2_user_id,
             
         }))
         await player2.send(text_data=json.dumps({
             'type': 'setName',
             'player1DisplayName' : self.player1_display_name,
             'player2DisplayName' : self.player2_display_name,
+            'player1Id' : self.player1_user_id,
+            'player2Id' : self.player2_user_id,            
             
         }))
 
@@ -410,7 +418,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                     #print(f"p1: {room['game_state']['Player1Points']}    p2: {room['game_state']['Player1Points']}")
                     if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
                         print(f"Ganador: {'winner'}")
-                        await self.send_game_result(room['game_state']['Player1Points'], room['game_state']['Player2Points'], 0, 'INDIVIDUAL')
+                        await self.send_game_result(room['game_state']['Player1Points'], room['game_state']['Player2Points'], 0, self.game_type)
                         playing = False
                         if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
                             await room['player1'].send(text_data=json.dumps({
@@ -505,7 +513,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                     speedY = room['game_state']['ball']['speed']['y']
                     
                     if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
-                        await self.send_game_result(room['game_state']['Player1Points'], room['game_state']['Player2Points'], 0, 'INDIVIDUAL')
+                        await self.send_game_result(room['game_state']['Player1Points'], room['game_state']['Player2Points'], 0, self.game_type)
                         print(f"Ganador: {'winner'}")
                         playing = False
                         if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
