@@ -5,9 +5,9 @@
 Para usar el proyecto hay que instalar los paquetes `channels` y `daphne` de python:
         aiohttp -> lo utilizaremos para pasar 
             los datos de las partidas del servidor de partidas al backend de torneos
-            
+        channels -> para poder crear canales de pong
 ```bash
-pip install channels daphne aiohttp   
+pip install channels daphne aiohttp channels
 
 ```
 

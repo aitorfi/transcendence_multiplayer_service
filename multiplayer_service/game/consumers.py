@@ -4,8 +4,12 @@ import asyncio
 import aiohttp # para hacer solicitudes http a math history
 import jwt
 import os
+from channels.layers import get_channel_layer
 from channels.generic.websocket import AsyncWebsocketConsumer
+
+
 from django.conf import settings
+from datetime import datetime
 
 
 # Diccionario global para mantener a los jugadores esperando
@@ -49,10 +53,44 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
         super().__init__(*args, **kwargs)
 
 
+
+
+    async def register_tournament(self, start_date=None, winner_id=0):
+        url = "http://localhost:60000/api/matches2/register-tournament/"
+
+        if start_date is None:
+            start_date = datetime.now()
+
+        data = {
+            "start_date": start_date.isoformat(),
+            "winner_id": winner_id
+        }
+
+        print(f"Registrando torneo con datos: {data}")
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url, json=data) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if result.get('status') == 'success':
+                            print(f"Torneo registrado exitosamente. ID: {result.get('tournament_id')}")
+                            return result.get('tournament_id')
+                        else:
+                            print(f"Error al registrar torneo: {result.get('message')}")
+                            return None
+                    else:
+                        print(f"Error al registrar torneo. Código de estado: {response.status}")
+                        return None
+            except aiohttp.ClientError as e:
+                print(f"Error de conexión al registrar torneo: {str(e)}")
+                return None
+            
+
     async def send_game_result(self, room):
    
         url = "http://localhost:60000/api/matches2/game-results/"  # Reemplaza con la URL correcta
-        print(f"Seguro que aqui no va")
+        print(f"Grabando resultadods")
         winner = 0
         if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
             winner =  room['game_state']['player1_id']
@@ -76,8 +114,11 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             async with session.post(url, json=data) as response:
                 if response.status == 200:
                     print("Resultado enviado exitosamente")
+                    if room['game_state']['match_type'] == 'FINAL':
+                        await self.end_tournament(room['game_state']['tournament_id'], winner)
                 else:
-                    print(f"Error al enviar resultado: {response.status}") 
+                    print(f"Error al enviar resultado: {response.status}")
+
 
 
     async def connect(self):
@@ -157,21 +198,169 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                 'message': "Bad request, parameter 'user_id' is mandatory"
             }))
 
-    """     
-    async def handle_action_join_game(self, data):
-        #self.user_id = data.get('user_id', 0)
-        global id
-        print (f"id = {id}")
-        self.user_id = id
-        id += 1
-        if self.user_id:
-            waiting_players.append(self)
-            await self.match_players()
-        else:
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': "Bad request, parameter 'user_id' is mandatory"
-            })) """
+
+
+    def get_player_connection(self, player_id):
+        for room in active_rooms.values():
+            if room['player1'].user_id == player_id:
+                return room['player1']
+            if room['player2'].user_id == player_id:
+                return room['player2']
+        return None
+
+
+    async def check_semifinals_completion(self, tournament_id):
+        try:
+            while True:
+                print(f"Verificando estado del torneo {tournament_id}")
+                if await self.are_semifinals_completed(tournament_id):
+                    print(f"Semifinales completadas para el torneo {tournament_id}")
+                    await self.prepare_final(tournament_id)
+                    break
+                await asyncio.sleep(5)  # Verifica cada 5 segundos
+        except Exception as e:
+            print(f"Error en check_semifinals_completion: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+
+    async def are_semifinals_completed(self, tournament_id):
+        url = f"http://localhost:60000/api/matches2/tournament-status/{tournament_id}/"
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        completed = data.get('semifinals_completed', False)
+                        print(f"Estado de semifinales para torneo {tournament_id}: {'Completadas' if completed else 'No completadas'}")
+                        return completed
+                    else:
+                        print(f"Error al verificar el estado del torneo. Código de estado: {response.status}")
+                        return False
+            except aiohttp.ClientError as e:
+                print(f"Error de conexión al verificar el estado del torneo: {str(e)}")
+                return False
+
+
+    async def prepare_final(self, tournament_id):
+        try:
+            winners = await self.get_semifinal_winners(tournament_id)
+            print(f"Ganadores de semifinales para torneo {tournament_id}: {winners}")
+            
+            if len(winners) == 2:
+                print("Preparando la final...")
+                # Guarda los ganadores y el ID del torneo para usarlos más tarde
+                self.final_players = winners
+                self.final_tournament_id = tournament_id
+                
+                # Iniciar la final directamente
+                await self.start_final()
+            else:
+                print(f"Error: No se encontraron 2 ganadores para el torneo {tournament_id}. Ganadores encontrados: {len(winners)}")
+        except Exception as e:
+            print(f"Error en prepare_final: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+
+    def create_player_object(self, user_id, display_name, tournament_id):
+        class Player:
+            def __init__(self, user_id, display_name, tournament_id):
+                self.user_id = user_id
+                self.display_name = display_name
+                self.tournament_id = tournament_id
+                self.send = self.dummy_send  # Añade un método send dummy
+                self.room_id = None
+            async def dummy_send(self, text_data):
+                print(f"Enviando datos a {self.display_name}: {text_data}")
+
+        return Player(user_id, display_name, tournament_id)
+
+
+    async def get_semifinal_winners(self, tournament_id):
+        url = f"http://localhost:60000/api/matches2/semifinal-winners/{tournament_id}/"
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        winners = data.get('winners', [])
+                        # Buscar las conexiones de los ganadores
+                        winner_connections = []
+                        for winner in winners:
+                            if isinstance(winner, dict):
+                                user_id = winner.get('user_id')
+                            elif isinstance(winner, int):
+                                user_id = winner
+                            else:
+                                print(f"Formato de ganador inesperado: {winner}")
+                                continue
+                            
+                            connection = self.get_player_connection(user_id)
+                            if connection:
+                                winner_connections.append(connection)
+                            else:
+                                print(f"No se encontró conexión para el jugador {user_id}")
+                        return winner_connections
+                    else:
+                        print(f"Error al obtener los ganadores de las semifinales. Código de estado: {response.status}")
+                        return []
+            except aiohttp.ClientError as e:
+                print(f"Error de conexión al obtener los ganadores de las semifinales: {str(e)}")
+                return []
+
+
+    async def start_final(self):
+        if not hasattr(self, 'final_players') or len(self.final_players) != 2:
+            print("Error: No hay jugadores disponibles para la final")
+            return
+
+        player1 = self.final_players[0]
+        player2 = self.final_players[1]
+
+        self.player1_user_id = player1.user_id
+        self.player1_display_name = player1.display_name
+        self.player2_user_id = player2.user_id
+        self.player2_display_name = player2.display_name
+
+        print(f"Iniciando la final:")
+        print(f"Player 1 - ID: {self.player1_user_id}, Nombre: {self.player1_display_name}")
+        print(f"Player 2 - ID: {self.player2_user_id}, Nombre: {self.player2_display_name}")
+
+        try:
+            await self.init_new_game(player1, player2, 'FINAL', self.final_tournament_id)
+            print("Juego final inicializado")
+            await self.notify_match_found(player1, player2)
+            print("Notificación de emparejamiento enviada")
+            asyncio.create_task(self.update_ball(f"room_{self.player1_user_id}_{self.player2_user_id}"))
+            print("Tarea de actualización de bola creada")
+            await self.notify_start_game(player1, player2)
+            print("Notificación de inicio de juego enviada")
+        except Exception as e:
+            print(f"Error al iniciar la final: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+
+
+    async def end_tournament(self, tournament_id, winner_id):
+        url = f"http://localhost:60000/api/matches2/end-tournament/{tournament_id}/"
+        data = {
+            "winner_id": winner_id
+        }
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url, json=data) as response:
+                    if response.status == 200:
+                        print(f"Torneo {tournament_id} finalizado. Ganador: {winner_id}")
+                    else:
+                        print(f"Error al finalizar el torneo. Código de estado: {response.status}")
+            except aiohttp.ClientError as e:
+                print(f"Error de conexión al finalizar el torneo: {str(e)}")
+
+
+
+
 
     async def match_players(self):
         """Intenta emparejar jugadores en la lista de espera."""
@@ -205,14 +394,13 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             self.player1_display_name = player1.display_name
             self.player2_user_id = player2.user_id
             self.player2_display_name = player2.display_name
-     
-
+            id_torneo = await self.register_tournament() 
+            print(f"Torneo Creado {id_torneo}")
             print(f"Emparejando jugadores Grupo A:")
             print(f"Player 1 - ID: {player1.user_id}, Nombre: {player1.display_name}")
             print(f"Player 2 - ID: {player2.user_id}, Nombre: {player2.display_name}")
 
-
-            await self.init_new_game(player1, player2, 'SEMIFINAL', 0)
+            await self.init_new_game(player1, player2, 'SEMIFINAL', id_torneo)
             await self.notify_match_found(player1, player2)
             #await asyncio.sleep(1)
             asyncio.create_task(self.update_ball(f"room_{player1.user_id}_{player2.user_id}"))
@@ -230,12 +418,15 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             print(f"Player 1 - ID: {player1.user_id}, Nombre: {player1.display_name}")
             print(f"Player 2 - ID: {player2.user_id}, Nombre: {player2.display_name}")
 
-            await self.init_new_game(player1, player2, 'SEMIFINAL', 0)
+            await self.init_new_game(player1, player2, 'SEMIFINAL', id_torneo)
             await self.notify_match_found(player1, player2)
             #await asyncio.sleep(1)
             asyncio.create_task(self.update_ball(f"room_{player1.user_id}_{player2.user_id}"))
             await self.notify_start_game(player1, player2)
-
+            asyncio.create_task(self.check_semifinals_completion(id_torneo))
+            print(f"Tarea de verificación de semifinales iniciada para el torneo {id_torneo}")
+        elif len(waiting_final_players) >= 2:
+                await self.start_final()
 
     async def init_new_game(self, player1, player2, match_type, tournament_id):
         # Crear una nueva sala para la partida
@@ -285,6 +476,8 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                 }
             }
         }
+        print(f"Las notas empiezan aqui: {active_rooms[room_id]}")
+
         player1.room_id = room_id
         player2.room_id = room_id
 
