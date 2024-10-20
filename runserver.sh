@@ -1,4 +1,4 @@
 #!/bin/bash
 
-cd multiplayer_service
-python3 -m daphne -p 50002 multiplayer_service.asgi:application
+python3 -m daphne -b 0.0.0.0 -p 8080 
+multiplayer_service.asgi:application
