@@ -4,9 +4,9 @@ import asyncio
 import aiohttp # para hacer solicitudes http a math history
 import jwt
 import os
+import uuid
 from channels.layers import get_channel_layer
 from channels.generic.websocket import AsyncWebsocketConsumer
-
 
 from django.conf import settings
 from datetime import datetime
@@ -22,70 +22,45 @@ waiting_final_players = []
 # Diccionario para almacenar las salas activas (por simplicidad, puede ser reemplazado por una base de datos)
 active_rooms = {}
 
+tournaments = {}
+active_connections = {} 
 
 id = 1
 
 
-def decode_jwt_token(token):
-    try:
-        # Decodifica el token usando la clave secreta de Django
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
-        return payload
-    except jwt.ExpiredSignatureError:
-        print("El token ha expirado")
-        return None
-    except jwt.InvalidTokenError:
-        print("El token ha expirado")
-        return None
- 
-def print_object_attributes(obj):
-    attributes = {key: value for key, value in vars(obj).items() if not key.startswith('__')}
-    print(f"Atributos de {type(obj).__name__}:")
-    for key, value in attributes.items():
-        print(f"  {key}: {value}")
 
 
 
+    
 
 class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # crea una instancia de PlayerConsumer:
+
+
+    def print_object_attributes(obj):
+        attributes = {key: value for key, value in vars(obj).items() if not key.startswith('__')}
+        print(f"Atributos de {type(obj).__name__}:")
+        for key, value in attributes.items():
+            print(f"  {key}: {value}")
 
 
 
+    def decode_jwt_token(self, token):
+        try:
+            # Decodifica el token usando la clave secreta de Django
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+            return payload
+        except jwt.ExpiredSignatureError:
+            print("El token ha expirado")
+            return None
+        except jwt.InvalidTokenError:
+            print("El token ha expirado")
+            return None
 
-    async def register_tournament(self, start_date=None, winner_id=0):
-        url = "http://localhost:60000/api/matches2/register-tournament/"
 
-        if start_date is None:
-            start_date = datetime.now()
-
-        data = {
-            "start_date": start_date.isoformat(),
-            "winner_id": winner_id
-        }
-
-        print(f"Registrando torneo con datos: {data}")
-
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(url, json=data) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        if result.get('status') == 'success':
-                            print(f"Torneo registrado exitosamente. ID: {result.get('tournament_id')}")
-                            return result.get('tournament_id')
-                        else:
-                            print(f"Error al registrar torneo: {result.get('message')}")
-                            return None
-                    else:
-                        print(f"Error al registrar torneo. Código de estado: {response.status}")
-                        return None
-            except aiohttp.ClientError as e:
-                print(f"Error de conexión al registrar torneo: {str(e)}")
-                return None
-            
 
     async def send_game_result(self, room):
    
@@ -118,6 +93,41 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                         await self.end_tournament(room['game_state']['tournament_id'], winner)
                 else:
                     print(f"Error al enviar resultado: {response.status}")
+
+
+    
+
+    async def register_tournament(self, start_date=None, winner_id=0):
+        url = "http://localhost:60000/api/matches2/register-tournament/"
+
+        if start_date is None:
+            start_date = datetime.now()
+
+        data = {
+            "start_date": start_date.isoformat(),
+            "winner_id": winner_id
+        }
+
+        print(f"Registrando torneo con datos: {data}")
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url, json=data) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        if result.get('status') == 'success':
+                            print(f"Torneo registrado exitosamente. ID: {result.get('tournament_id')}")
+                            return result.get('tournament_id')
+                        else:
+                            print(f"Error al registrar torneo: {result.get('message')}")
+                            return None
+                    else:
+                        print(f"Error al registrar torneo. Código de estado: {response.status}")
+                        return None
+            except aiohttp.ClientError as e:
+                print(f"Error de conexión al registrar torneo: {str(e)}")
+                return None
+            
 
 
 
@@ -168,7 +178,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
     async def handle_action_join_game(self, data):
 
-        payload = decode_jwt_token(data['token'])
+        payload = self.decode_jwt_token(data['token'])
         print(f"Token decodificado: {payload}")
 
         self.user_id = payload.get('user_id')
@@ -181,7 +191,7 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
         global id
    
-        print_object_attributes(self)
+        self.print_object_attributes()
         id = self.user_id
         if self.user_id:
                       
@@ -222,25 +232,31 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             print(f"Error en check_semifinals_completion: {str(e)}")
             import traceback
             traceback.print_exc()
-
-
+  
     async def are_semifinals_completed(self, tournament_id):
-        url = f"http://localhost:60000/api/matches2/tournament-status/{tournament_id}/"
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        completed = data.get('semifinals_completed', False)
-                        print(f"Estado de semifinales para torneo {tournament_id}: {'Completadas' if completed else 'No completadas'}")
-                        return completed
-                    else:
-                        print(f"Error al verificar el estado del torneo. Código de estado: {response.status}")
-                        return False
-            except aiohttp.ClientError as e:
-                print(f"Error de conexión al verificar el estado del torneo: {str(e)}")
-                return False
+        if tournaments[tournament_id]['room1'] != 0 and tournaments[tournament_id]['room2'] != 0:
+           return 1
+        return 0
 
+
+
+    """     async def are_semifinals_completed(self, tournament_id):
+            url = f"http://localhost:60000/api/matches2/tournament-status/{tournament_id}/"
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            completed = data.get('semifinals_completed', False)
+                            print(f"Estado de semifinales para torneo {tournament_id}: {'Completadas' if completed else 'No completadas'}")
+                            return completed
+                        else:
+                            print(f"Error al verificar el estado del torneo. Código de estado: {response.status}")
+                            return False
+                except aiohttp.ClientError as e:
+                    print(f"Error de conexión al verificar el estado del torneo: {str(e)}")
+                    return False
+    """
 
     async def prepare_final(self, tournament_id):
         try:
@@ -344,20 +360,23 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
 
 
     async def end_tournament(self, tournament_id, winner_id):
-        url = f"http://localhost:60000/api/matches2/end-tournament/{tournament_id}/"
-        data = {
-            "winner_id": winner_id
-        }
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(url, json=data) as response:
-                    if response.status == 200:
-                        print(f"Torneo {tournament_id} finalizado. Ganador: {winner_id}")
-                    else:
-                        print(f"Error al finalizar el torneo. Código de estado: {response.status}")
-            except aiohttp.ClientError as e:
-                print(f"Error de conexión al finalizar el torneo: {str(e)}")
-
+        
+        print("Game finished")
+        
+        """         url = f"http://localhost:60000/api/matches2/end-tournament/{tournament_id}/"
+                data = {
+                    "winner_id": winner_id
+                }
+                async with aiohttp.ClientSession() as session:
+                    try:
+                        async with session.post(url, json=data) as response:
+                            if response.status == 200:
+                                print(f"Torneo {tournament_id} finalizado. Ganador: {winner_id}")
+                            else:
+                                print(f"Error al finalizar el torneo. Código de estado: {response.status}")
+                    except aiohttp.ClientError as e:
+                        print(f"Error de conexión al finalizar el torneo: {str(e)}")
+         """
 
 
 
@@ -381,11 +400,11 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             print(f"Emparejando type:{self.game_type}")
             print(f"Emparejando id:{self.game_id}")
 
-            await self.init_new_game(player1, player2)
+            await self.init_new_game(player1, player2, 'INDIVIDUAL', 0)
             await self.notify_match_found(player1, player2)
             #await asyncio.sleep(1)
             asyncio.create_task(self.update_ball(self.room_id))
-            await self.init_new_game(player1, player2, 'INDIVIDUAL', 0)
+
         elif len(waiting_semifinal_players) >= 4:
             player1 = waiting_semifinal_players.pop(0)
             player2 = waiting_semifinal_players.pop(0)
@@ -394,7 +413,9 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
             self.player1_display_name = player1.display_name
             self.player2_user_id = player2.user_id
             self.player2_display_name = player2.display_name
-            id_torneo = await self.register_tournament() 
+            tournament_uuid = uuid.uuid4()  # Primero generamos el UUID
+            id_torneo = int(str(uuid.uuid4().hex)[:7], 16) 
+            tournaments[id_torneo] = {'room1': 0, 'room2': 0, 'room1display': "", 'room2display': ""}
             print(f"Torneo Creado {id_torneo}")
             print(f"Emparejando jugadores Grupo A:")
             print(f"Player 1 - ID: {player1.user_id}, Nombre: {player1.display_name}")
@@ -674,6 +695,24 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                     speedY = room['game_state']['ball']['speed']['y']
                     #print(f"p1: {room['game_state']['Player1Points']}    p2: {room['game_state']['Player1Points']}")
                     if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
+                        if tournaments[room['game_state']['tournament_id']]['room1'] == 0:
+                            if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
+                                tournaments[room['game_state']['tournament_id']]['room1'] = room['game_state']['player1_id']
+                                tournaments[room['game_state']['tournament_id']]['room1display'] = room['game_state']['player1_display_name']
+                            else:
+                                tournaments[room['game_state']['tournament_id']]['room1'] = room['game_state']['player2_id']
+                                tournaments[room['game_state']['tournament_id']]['room1display'] = room['game_state']['player2_display_name']
+                        # Si no, asignar a room2
+                        else:
+                            if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
+                                tournaments[room['game_state']['tournament_id']]['room2'] = room['game_state']['player1_id']
+                                tournaments[room['game_state']['tournament_id']]['room2display'] = room['game_state']['player1_display_name']
+
+                            else:
+                                tournaments[room['game_state']['tournament_id']]['room2'] = room['game_state']['player2_id']
+                                tournaments[room['game_state']['tournament_id']]['room2display'] = room['game_state']['player2_display_name']
+
+                        
                         await self.send_game_result(room)
                         playing = False
                         if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
@@ -769,6 +808,23 @@ class GameMatchmakingConsumer(AsyncWebsocketConsumer):
                     speedY = room['game_state']['ball']['speed']['y']
                     
                     if room['game_state']['Player1Points'] == 3 or room['game_state']['Player2Points'] == 3: #fin de partida endgame
+                        if tournaments[room['game_state']['tournament_id']]['room1'] == 0:
+                            if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
+                                tournaments[room['game_state']['tournament_id']]['room1'] = room['game_state']['player1_id']
+                                tournaments[room['game_state']['tournament_id']]['room1display'] = room['game_state']['player1_display_name']
+                            else:
+                                tournaments[room['game_state']['tournament_id']]['room1'] = room['game_state']['player2_id']
+                                tournaments[room['game_state']['tournament_id']]['room1display'] = room['game_state']['player2_display_name']
+                        # Si no, asignar a room2
+                        else:
+                            if room['game_state']['Player1Points'] > room['game_state']['Player2Points']:
+                                tournaments[room['game_state']['tournament_id']]['room2'] = room['game_state']['player1_id']
+                                tournaments[room['game_state']['tournament_id']]['room2display'] = room['game_state']['player1_display_name']
+
+                            else:
+                                tournaments[room['game_state']['tournament_id']]['room2'] = room['game_state']['player2_id']
+                                tournaments[room['game_state']['tournament_id']]['room2display'] = room['game_state']['player2_display_name']                        
+                        
                         await self.send_game_result(room)
                         print(f"Ganador: {'winner'}")
                         playing = False
